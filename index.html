@@ -424,11 +424,24 @@
         }
 
         /* Video Section */
+        .video-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        @media (max-width: 900px) {
+            .video-comparison {
+                grid-template-columns: 1fr;
+            }
+        }
+
         .video-section {
             background: var(--surface-solid);
-            border-radius: 1.5rem;
+            border-radius: 1rem;
             overflow: hidden;
-            margin: 3rem 0;
+            border: 1px solid rgba(0, 212, 255, 0.1);
         }
 
         .video-header {
@@ -942,22 +955,42 @@
     <section class="section" id="demo">
         <h2 class="section-title">Generation Demo</h2>
         
-        <div class="video-section">
-            <div class="video-header">
-                <h3 style="font-family: 'Instrument Serif', serif; font-size: 1.3rem;">Live Token Maturation</h3>
-                <span style="color: var(--text-secondary); font-size: 0.9rem;">Without Classifier-Free Guidance</span>
+        <div class="video-comparison">
+            <div class="video-section">
+                <div class="video-header">
+                    <h3 style="font-family: 'Instrument Serif', serif; font-size: 1.3rem;">Without CFG</h3>
+                    <span style="color: var(--text-secondary); font-size: 0.85rem;">s = 1.0 (no guidance)</span>
+                </div>
+                <div class="video-container">
+                    <video controls autoplay muted loop playsinline>
+                        <source src="assets/generation_example_no_CFG.mp4" type="video/mp4">
+                    </video>
+                </div>
+                <div class="video-caption">
+                    Tail tokens appear as incoherent noise. The model explores freely without context steering.
+                </div>
             </div>
-            <div class="video-container">
-                <video controls autoplay muted loop playsinline>
-                    <source src="assets/generation_example_no_CFG.mp4" type="video/mp4">
-                    Your browser does not support the video tag.
-                </video>
-            </div>
-            <div class="video-caption">
-                <strong>Left:</strong> Committed text (white) followed by the liquid tail (cyan). 
-                <strong>Right:</strong> Top token candidates during maturation. Despite high entropy (~3.9 nats), all candidates remain semantically coherent.
+            
+            <div class="video-section">
+                <div class="video-header">
+                    <h3 style="font-family: 'Instrument Serif', serif; font-size: 1.3rem;">With CFG</h3>
+                    <span style="color: var(--crystal); font-size: 0.85rem;">s = 2.0 (guided)</span>
+                </div>
+                <div class="video-container">
+                    <video controls autoplay muted loop playsinline>
+                        <source src="assets/generation_example_CFG.mp4" type="video/mp4">
+                    </video>
+                </div>
+                <div class="video-caption">
+                    Tail tokens form <strong>interpretable lookahead</strong>—thematic concepts visible before commitment.
+                </div>
             </div>
         </div>
+        
+        <p style="text-align: center; color: var(--text-secondary); margin-top: 1.5rem; max-width: 700px; margin-left: auto; margin-right: auto;">
+            <strong style="color: var(--crystal);">Classifier-Free Guidance</strong> pulls tail vectors toward the manifold of coherent text, 
+            making the liquid tail a window into the model's implicit forward planning.
+        </p>
 
         <!-- Template Attractor Demo -->
         <h3 style="font-family: 'Instrument Serif', serif; font-size: 1.5rem; margin: 3rem 0 1rem;">Emergent Template Attractors</h3>
