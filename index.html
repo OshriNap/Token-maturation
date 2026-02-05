@@ -1079,11 +1079,11 @@
             A key finding: discrete commitment need not coincide with probability concentration. The entropy of the induced token distribution often remains high (~3.9 nats) throughout maturation, yet generation stays coherent.
         </p>
         
-        <div class="figure" style="max-width: 800px;">
-            <img src="assets/entropy_figure.png" alt="Entropy during maturation" style="background: #1a1a2e; padding: 1rem;">
+        <div class="figure" style="max-width: 900px; margin: 2rem auto;">
+            <img src="assets/entropy_figure.png" alt="Entropy during maturation" style="background: #fff; border-radius: 0.5rem;">
             <div class="figure-caption">
-                <strong>Left:</strong> Entropy H(p(·|z)) for tokens across refinement steps—often near-constant until projection.
-                <strong>Right:</strong> Top-1 token can "flicker" across steps even when entropy is stable, showing that stability is geometric, not probabilistic.
+                <strong>Left:</strong> Entropy remains constant (~3.9 nats) throughout maturation—uncertainty doesn't collapse.
+                <strong>Right:</strong> Top-1 candidate for "Dr" token flickers between options despite stable entropy, showing geometric convergence without probabilistic certainty.
             </div>
         </div>
     </section>
