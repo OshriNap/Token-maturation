@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Token Maturation: Autoregressive Language Generation via Continuous Token Dynamics</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&family=Manrope:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --liquid-start: #0a1628;
+            --liquid-mid: #0f2847;
+            --liquid-accent: #1e90ff;
+            --crystal: #00d4ff;
+            --crystal-bright: #7df9ff;
+            --committed: #ffffff;
+            --text-primary: #e8f4ff;
+            --text-secondary: #8ba3bd;
+            --surface: rgba(15, 40, 71, 0.6);
+            --surface-solid: #0d1f35;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Manrope', sans-serif;
+            background: var(--liquid-start);
+            color: var(--text-primary);
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        /* Animated background */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .bg-animation::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: 
+                radial-gradient(ellipse at 20% 20%, rgba(30, 144, 255, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(0, 212, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(125, 249, 255, 0.05) 0%, transparent 70%);
+            animation: bgDrift 20s ease-in-out infinite;
+        }
+
+        @keyframes bgDrift {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(2%, 1%) rotate(1deg); }
+            66% { transform: translate(-1%, 2%) rotate(-1deg); }
+        }
+
+        /* Typography */
+        h1, h2, h3 {
+            font-family: 'Instrument Serif', serif;
+            font-weight: 400;
+        }
+
+        .section-title {
+            font-size: clamp(2rem, 5vw, 3.5rem);
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, var(--crystal) 0%, var(--crystal-bright) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            padding: 1rem 2rem;
+            background: linear-gradient(180deg, var(--liquid-start) 0%, transparent 100%);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--crystal);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: var(--crystal);
+        }
+
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 6rem 2rem 4rem;
+            text-align: center;
+            position: relative;
+        }
+
+        /* Animated Logo */
+        .logo-container {
+            margin-bottom: 3rem;
+            position: relative;
+        }
+
+        .logo-svg {
+            width: 280px;
+            height: 100px;
+        }
+
+        .token-block {
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .token-liquid {
+            fill: url(#liquidGradient);
+            filter: url(#blur);
+            animation: liquidPulse 3s ease-in-out infinite;
+        }
+
+        .token-maturing {
+            fill: url(#maturingGradient);
+            filter: url(#blur-light);
+            animation: liquidPulse 3s ease-in-out infinite 0.5s;
+        }
+
+        .token-committed {
+            fill: url(#committedGradient);
+        }
+
+        @keyframes liquidPulse {
+            0%, 100% { opacity: 0.7; transform: translateY(0); }
+            50% { opacity: 1; transform: translateY(-2px); }
+        }
+
+        .hero-title {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            max-width: 900px;
+        }
+
+        .hero-title .highlight {
+            background: linear-gradient(135deg, var(--liquid-accent) 0%, var(--crystal) 50%, var(--crystal-bright) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-subtitle {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            max-width: 700px;
+            margin-bottom: 2.5rem;
+            font-weight: 300;
+        }
+
+        .hero-badges {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 3rem;
+        }
+
+        .badge {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1.2rem;
+            background: var(--surface);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 2rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            backdrop-filter: blur(10px);
+        }
+
+        .badge-icon {
+            width: 18px;
+            height: 18px;
+            fill: var(--crystal);
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem 2rem;
+            border-radius: 0.5rem;
+            font-family: 'Manrope', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--liquid-accent) 0%, var(--crystal) 100%);
+            color: var(--liquid-start);
+            border: none;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 212, 255, 0.3);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--crystal);
+            border: 1px solid var(--crystal);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        /* Scroll indicator */
+        .scroll-indicator {
+            position: absolute;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            animation: bobbing 2s ease-in-out infinite;
+        }
+
+        @keyframes bobbing {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(8px); }
+        }
+
+        /* Content Sections */
+        .section {
+            padding: 6rem 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Key Insight Section */
+        .key-insight {
+            background: linear-gradient(135deg, var(--surface) 0%, rgba(30, 144, 255, 0.1) 100%);
+            border: 1px solid rgba(0, 212, 255, 0.15);
+            border-radius: 1.5rem;
+            padding: 3rem;
+            margin-bottom: 4rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .key-insight::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--liquid-accent), var(--crystal), var(--crystal-bright));
+        }
+
+        .insight-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .insight-card {
+            padding: 1.5rem;
+            background: rgba(10, 22, 40, 0.5);
+            border-radius: 1rem;
+            border: 1px solid rgba(0, 212, 255, 0.1);
+        }
+
+        .insight-card h4 {
+            font-family: 'Instrument Serif', serif;
+            font-size: 1.3rem;
+            color: var(--crystal);
+            margin-bottom: 0.75rem;
+        }
+
+        .insight-card p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        /* Comparison Diagram */
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        @media (max-width: 768px) {
+            .comparison {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .comparison-card {
+            padding: 2rem;
+            border-radius: 1rem;
+            position: relative;
+        }
+
+        .comparison-card.standard {
+            background: linear-gradient(135deg, rgba(100, 100, 100, 0.2) 0%, rgba(60, 60, 60, 0.1) 100%);
+            border: 1px solid rgba(150, 150, 150, 0.2);
+        }
+
+        .comparison-card.ours {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.15) 0%, rgba(30, 144, 255, 0.1) 100%);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+        }
+
+        .comparison-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+        }
+
+        .comparison-card.ours .comparison-label {
+            color: var(--crystal);
+        }
+
+        .comparison-title {
+            font-family: 'Instrument Serif', serif;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .token-sequence {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin: 1.5rem 0;
+        }
+
+        .token {
+            padding: 0.4rem 0.8rem;
+            border-radius: 0.25rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+        }
+
+        .token.discrete {
+            background: rgba(150, 150, 150, 0.3);
+            border: 1px solid rgba(150, 150, 150, 0.5);
+        }
+
+        .token.committed {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            color: var(--committed);
+        }
+
+        .token.liquid {
+            background: linear-gradient(135deg, rgba(30, 144, 255, 0.4) 0%, rgba(0, 212, 255, 0.3) 100%);
+            border: 1px solid var(--crystal);
+            color: var(--crystal-bright);
+            animation: liquidToken 2s ease-in-out infinite;
+        }
+
+        @keyframes liquidToken {
+            0%, 100% { box-shadow: 0 0 10px rgba(0, 212, 255, 0.3); }
+            50% { box-shadow: 0 0 20px rgba(0, 212, 255, 0.5); }
+        }
+
+        /* Video Section */
+        .video-section {
+            background: var(--surface-solid);
+            border-radius: 1.5rem;
+            overflow: hidden;
+            margin: 3rem 0;
+        }
+
+        .video-header {
+            padding: 2rem;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 6;
+            background: #000;
+        }
+
+        .video-container video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .video-caption {
+            padding: 1.5rem 2rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            border-top: 1px solid rgba(0, 212, 255, 0.1);
+        }
+
+        /* Results Table */
+        .results-table-container {
+            overflow-x: auto;
+            margin: 2rem 0;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+        }
+
+        .results-table th,
+        .results-table td {
+            padding: 1rem 1.5rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+        }
+
+        .results-table th {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--crystal);
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .results-table td {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .results-table tr:hover td {
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .metric-good {
+            color: #4ade80;
+        }
+
+        .metric-bad {
+            color: #f87171;
+        }
+
+        /* Figure Gallery */
+        .figure-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        @media (max-width: 500px) {
+            .figure-gallery {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .figure {
+            background: var(--surface-solid);
+            border-radius: 1rem;
+            overflow: hidden;
+            border: 1px solid rgba(0, 212, 255, 0.1);
+        }
+
+        .figure img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .figure-caption {
+            padding: 1.25rem;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .figure-caption strong {
+            color: var(--crystal);
+        }
+
+        /* Abstract Section */
+        .abstract {
+            font-size: 1.1rem;
+            line-height: 1.9;
+            color: var(--text-secondary);
+            max-width: 900px;
+        }
+
+        .abstract em {
+            color: var(--crystal);
+            font-style: normal;
+        }
+
+        /* Citation Section */
+        .citation-box {
+            background: var(--surface-solid);
+            border-radius: 1rem;
+            overflow: hidden;
+            border: 1px solid rgba(0, 212, 255, 0.1);
+        }
+
+        .citation-header {
+            padding: 1rem 1.5rem;
+            background: rgba(0, 212, 255, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .citation-header span {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--crystal);
+        }
+
+        .copy-btn {
+            background: transparent;
+            border: 1px solid var(--crystal);
+            color: var(--crystal);
+            padding: 0.4rem 0.8rem;
+            border-radius: 0.25rem;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .copy-btn:hover {
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .citation-code {
+            padding: 1.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+
+        /* Method Details */
+        .method-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        @media (max-width: 900px) {
+            .method-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .method-step {
+            padding: 2rem;
+            background: var(--surface);
+            border-radius: 1rem;
+            border: 1px solid rgba(0, 212, 255, 0.1);
+            position: relative;
+        }
+
+        .step-number {
+            position: absolute;
+            top: -1rem;
+            left: 1.5rem;
+            width: 2.5rem;
+            height: 2.5rem;
+            background: linear-gradient(135deg, var(--liquid-accent), var(--crystal));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+            color: var(--liquid-start);
+        }
+
+        .method-step h4 {
+            font-family: 'Instrument Serif', serif;
+            font-size: 1.25rem;
+            margin-bottom: 0.75rem;
+            margin-top: 0.5rem;
+        }
+
+        .method-step p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        /* Footer */
+        footer {
+            padding: 4rem 2rem;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            border-top: 1px solid rgba(0, 212, 255, 0.1);
+        }
+
+        footer a {
+            color: var(--crystal);
+            text-decoration: none;
+        }
+
+        /* Equation block */
+        .equation {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 1.5rem 2rem;
+            border-radius: 0.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1rem;
+            text-align: center;
+            margin: 1.5rem 0;
+            overflow-x: auto;
+        }
+
+        /* Template Attractor Visualization */
+        .template-demo {
+            background: var(--surface-solid);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            border: 1px solid rgba(0, 212, 255, 0.1);
+        }
+
+        .template-prompt {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+        }
+
+        .template-prompt strong {
+            color: var(--crystal);
+        }
+
+        .template-output {
+            padding: 1rem 1.5rem;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 0.5rem;
+            margin-bottom: 0.75rem;
+            font-size: 0.95rem;
+            border-left: 3px solid var(--crystal);
+        }
+
+        .template-output .variable {
+            color: var(--crystal-bright);
+            font-style: italic;
+        }
+
+        .template-output .structure {
+            color: var(--text-secondary);
+        }
+
+        /* Animation utilities */
+        .fade-in {
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeIn 0.8s ease forwards;
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .delay-1 { animation-delay: 0.1s; }
+        .delay-2 { animation-delay: 0.2s; }
+        .delay-3 { animation-delay: 0.3s; }
+        .delay-4 { animation-delay: 0.4s; }
+    </style>
+</head>
+<body>
+    <div class="bg-animation"></div>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-logo">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="8" width="6" height="8" rx="1" fill="url(#navLiquid)" opacity="0.6"/>
+                <rect x="9" y="8" width="6" height="8" rx="1" fill="url(#navMid)" opacity="0.8"/>
+                <rect x="16" y="8" width="6" height="8" rx="1" fill="#00d4ff"/>
+                <defs>
+                    <linearGradient id="navLiquid" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stop-color="#1e90ff"/>
+                        <stop offset="100%" stop-color="#00d4ff"/>
+                    </linearGradient>
+                    <linearGradient id="navMid" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stop-color="#00d4ff"/>
+                        <stop offset="100%" stop-color="#7df9ff"/>
+                    </linearGradient>
+                </defs>
+            </svg>
+            Token Maturation
+        </div>
+        <div class="nav-links">
+            <a href="#method">Method</a>
+            <a href="#results">Results</a>
+            <a href="#demo">Demo</a>
+            <a href="#citation">Citation</a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="logo-container fade-in">
+            <svg class="logo-svg" viewBox="0 0 280 100">
+                <defs>
+                    <linearGradient id="liquidGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#1e90ff" stop-opacity="0.6"/>
+                        <stop offset="100%" stop-color="#00d4ff" stop-opacity="0.4"/>
+                    </linearGradient>
+                    <linearGradient id="maturingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#00d4ff" stop-opacity="0.8"/>
+                        <stop offset="100%" stop-color="#7df9ff" stop-opacity="0.6"/>
+                    </linearGradient>
+                    <linearGradient id="committedGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#7df9ff"/>
+                        <stop offset="100%" stop-color="#ffffff"/>
+                    </linearGradient>
+                    <filter id="blur" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur in="SourceGraphic" stdDeviation="3"/>
+                    </filter>
+                    <filter id="blur-light" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur in="SourceGraphic" stdDeviation="1.5"/>
+                    </filter>
+                </defs>
+                
+                <!-- Committed tokens (sharp) -->
+                <rect class="token-block token-committed" x="10" y="30" width="40" height="40" rx="4"/>
+                <rect class="token-block token-committed" x="60" y="30" width="40" height="40" rx="4"/>
+                <rect class="token-block token-committed" x="110" y="30" width="40" height="40" rx="4"/>
+                
+                <!-- Maturing token -->
+                <rect class="token-block token-maturing" x="165" y="28" width="44" height="44" rx="6"/>
+                
+                <!-- Liquid tokens -->
+                <rect class="token-block token-liquid" x="220" y="25" width="50" height="50" rx="8"/>
+                
+                <!-- Labels -->
+                <text x="60" y="90" fill="#8ba3bd" font-family="JetBrains Mono" font-size="10" text-anchor="middle">committed</text>
+                <text x="187" y="90" fill="#00d4ff" font-family="JetBrains Mono" font-size="10" text-anchor="middle">maturing</text>
+                <text x="245" y="90" fill="#1e90ff" font-family="JetBrains Mono" font-size="10" text-anchor="middle">liquid</text>
+            </svg>
+        </div>
+
+        <h1 class="hero-title fade-in delay-1">
+            <span class="highlight">Token Maturation</span><br>
+            Continuous-Space Autoregressive Generation
+        </h1>
+        
+        <p class="hero-subtitle fade-in delay-2">
+            Decoupling prediction from commitment. An autoregressive language model that generates tokens through continuous vector dynamics, eliminating repetition without sampling heuristics.
+        </p>
+
+        <div class="hero-badges fade-in delay-3">
+            <div class="badge">
+                <svg class="badge-icon" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                Continuous Space
+            </div>
+            <div class="badge">
+                <svg class="badge-icon" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                Deterministic Decoding
+            </div>
+            <div class="badge">
+                <svg class="badge-icon" viewBox="0 0 24 24"><path d="M4 4h16v16H4V4zm2 2v12h12V6H6z"/></svg>
+                No Repetition Penalty
+            </div>
+        </div>
+
+        <div class="cta-buttons fade-in delay-4">
+            <a href="https://arxiv.org/abs/2601.04854" class="btn btn-primary" target="_blank">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zM6 20V4h6v6h6v10H6z"/></svg>
+                Read Paper
+            </a>
+            <a href="#" class="btn btn-secondary">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+                Code (Coming Soon)
+            </a>
+        </div>
+
+        <div class="scroll-indicator">
+            <span>Scroll to explore</span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12l7 7 7-7"/>
+            </svg>
+        </div>
+    </section>
+
+    <!-- Key Insight Section -->
+    <section class="section">
+        <div class="key-insight">
+            <h2 class="section-title">The Core Insight</h2>
+            <p class="abstract">
+                Standard autoregressive LLMs commit to a <em>discrete token</em> at every step—prediction and commitment are fused into a single operation. This forces uncertainty to collapse immediately, leading to degenerate repetition under greedy decoding and dependence on sampling heuristics.
+            </p>
+            <p class="abstract" style="margin-top: 1.5rem;">
+                <strong style="color: var(--crystal);">Token Maturation decouples prediction from commitment.</strong> The generation state is a sequence of continuous vectors. New tokens emerge through iterative refinement in embedding space, and discrete commitment happens only when vectors geometrically stabilize—not when probability concentrates.
+            </p>
+            
+            <div class="insight-grid">
+                <div class="insight-card">
+                    <h4>Continuous State</h4>
+                    <p>The entire sequence—including already-generated tokens—lives in continuous embedding space. No discrete indices until final projection.</p>
+                </div>
+                <div class="insight-card">
+                    <h4>Delayed Commitment</h4>
+                    <p>A "liquid tail" of K vectors is iteratively refined. Tokens are committed only when they reach the front of the buffer.</p>
+                </div>
+                <div class="insight-card">
+                    <h4>Geometric Stability</h4>
+                    <p>Commitment occurs via nearest-neighbor projection when vectors stabilize—even if the induced token distribution remains high-entropy.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comparison -->
+        <div class="comparison">
+            <div class="comparison-card standard">
+                <div class="comparison-label">Standard Autoregressive</div>
+                <h3 class="comparison-title">Immediate Commitment</h3>
+                <div class="token-sequence">
+                    <span class="token discrete">The</span>
+                    <span class="token discrete">cat</span>
+                    <span class="token discrete">sat</span>
+                    <span class="token discrete">▊</span>
+                </div>
+                <p style="color: var(--text-secondary); font-size: 0.9rem;">
+                    Each token is immediately discretized via sampling or argmax. Uncertainty must collapse to a single choice at every step.
+                </p>
+            </div>
+            <div class="comparison-card ours">
+                <div class="comparison-label">Token Maturation (Ours)</div>
+                <h3 class="comparison-title">Deferred Commitment</h3>
+                <div class="token-sequence">
+                    <span class="token committed">The</span>
+                    <span class="token committed">cat</span>
+                    <span class="token committed">sat</span>
+                    <span class="token liquid">on</span>
+                    <span class="token liquid">the</span>
+                    <span class="token liquid">mat</span>
+                </div>
+                <p style="color: var(--text-secondary); font-size: 0.9rem;">
+                    Committed tokens (white) followed by a liquid tail (cyan) that matures through continuous refinement before projection.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Method Section -->
+    <section class="section" id="method">
+        <h2 class="section-title">How It Works</h2>
+        
+        <div class="method-grid">
+            <div class="method-step">
+                <div class="step-number">1</div>
+                <h4>Continuous Representation</h4>
+                <p>Tokens are represented as vectors z<sub>t</sub> ∈ ℝ<sup>d</sup> in embedding space. The model predicts continuous vectors, not logits over vocabulary.</p>
+            </div>
+            <div class="method-step">
+                <div class="step-number">2</div>
+                <h4>Iterative Refinement</h4>
+                <p>The liquid tail is updated via contraction: z̃<sub>i</sub> ← z̃<sub>i</sub> + η(α)(ẑ<sub>i</sub> − z̃<sub>i</sub>), where η depends on position in the tail.</p>
+            </div>
+            <div class="method-step">
+                <div class="step-number">3</div>
+                <h4>Projection & Commit</h4>
+                <p>When a vector reaches the front of the tail, it's committed via nearest-neighbor projection: x<sub>t</sub> = argmax<sub>i</sub> ⟨z<sub>t</sub>, e<sub>i</sub>⟩.</p>
+            </div>
+        </div>
+
+        <div class="equation">
+            Training: ℒ = ‖ẑ<sub>t</sub> − e<sub>x<sub>t</sub></sub>‖² + λ · ℒ<sub>NCE</sub>
+        </div>
+        <p style="text-align: center; color: var(--text-secondary); margin-top: 1rem;">
+            MSE ensures geometric convergence; InfoNCE prevents collapse toward the mean and anchors predictions to discrete token identities.
+        </p>
+    </section>
+
+    <!-- Demo Section -->
+    <section class="section" id="demo">
+        <h2 class="section-title">Generation Demo</h2>
+        
+        <div class="video-section">
+            <div class="video-header">
+                <h3 style="font-family: 'Instrument Serif', serif; font-size: 1.3rem;">Live Token Maturation</h3>
+                <span style="color: var(--text-secondary); font-size: 0.9rem;">Without Classifier-Free Guidance</span>
+            </div>
+            <div class="video-container">
+                <video controls autoplay muted loop playsinline>
+                    <source src="assets/generation_example_no_CFG.mp4" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+            <div class="video-caption">
+                <strong>Left:</strong> Committed text (white) followed by the liquid tail (cyan). 
+                <strong>Right:</strong> Top token candidates during maturation. Despite high entropy (~3.9 nats), all candidates remain semantically coherent.
+            </div>
+        </div>
+
+        <!-- Template Attractor Demo -->
+        <h3 style="font-family: 'Instrument Serif', serif; font-size: 1.5rem; margin: 3rem 0 1rem;">Emergent Template Attractors</h3>
+        <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+            Token Maturation often converges to a stable <em>structural template</em> while varying surface-level entities:
+        </p>
+        
+        <div class="template-demo">
+            <div class="template-prompt">
+                <strong>Prompt:</strong> "The meaning of life is..."
+            </div>
+            <div class="template-output">
+                <span class="structure">"</span><span class="variable">eternal happiness</span><span class="structure">," says Dr. </span><span class="variable">James Wilson</span><span class="structure">, director of </span><span class="variable">Psychiatry</span><span class="structure">...</span>
+            </div>
+            <div class="template-output">
+                <span class="structure">"</span><span class="variable">eternal peace</span><span class="structure">," says Dr. </span><span class="variable">R. Ehrlichman</span><span class="structure">, director of </span><span class="variable">Stanford Med</span><span class="structure">...</span>
+            </div>
+            <div class="template-output">
+                <span class="structure">"</span><span class="variable">to know thyself</span><span class="structure">," says Dr. </span><span class="variable">David Hahn</span><span class="structure">, director of </span><span class="variable">Neuroscience</span><span class="structure">...</span>
+            </div>
+            <p style="margin-top: 1rem; color: var(--text-secondary); font-size: 0.9rem;">
+                The structural pattern [Quote → Attribution → Role] remains stable across runs, while specific names, quotes, and institutions vary freely.
+            </p>
+        </div>
+    </section>
+
+    <!-- Results Section -->
+    <section class="section" id="results">
+        <h2 class="section-title">Results</h2>
+        
+        <h3 style="font-family: 'Instrument Serif', serif; font-size: 1.5rem; margin-bottom: 1.5rem;">Repetition Metrics</h3>
+        <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+            Token Maturation eliminates degenerate repetition under pure greedy decoding—no penalties, no temperature, no sampling.
+        </p>
+        
+        <div class="results-table-container">
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Token Maturation (Ours)</th>
+                        <th>Standard Greedy</th>
+                        <th>Greedy + Penalty</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Dist-1 ↑</td>
+                        <td class="metric-good">0.974</td>
+                        <td class="metric-bad">0.228</td>
+                        <td>0.936</td>
+                    </tr>
+                    <tr>
+                        <td>Dist-2 ↑</td>
+                        <td class="metric-good">1.000</td>
+                        <td class="metric-bad">0.301</td>
+                        <td>0.999</td>
+                    </tr>
+                    <tr>
+                        <td>Rep-2 ↓</td>
+                        <td class="metric-good">0.000</td>
+                        <td class="metric-bad">0.699</td>
+                        <td>0.001</td>
+                    </tr>
+                    <tr>
+                        <td>Rep-3 ↓</td>
+                        <td class="metric-good">0.000</td>
+                        <td class="metric-bad">0.665</td>
+                        <td>0.000</td>
+                    </tr>
+                    <tr>
+                        <td>Loop % ↓</td>
+                        <td class="metric-good">0%</td>
+                        <td class="metric-bad">90%</td>
+                        <td>0%</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 1rem;">
+            All models use the same GPT-2 Medium backbone. Loop% = fraction of samples containing any repeated trigram.
+        </p>
+
+        <h3 style="font-family: 'Instrument Serif', serif; font-size: 1.5rem; margin: 3rem 0 1.5rem;">Coherent Generation Without Entropy Collapse</h3>
+        <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+            A key finding: discrete commitment need not coincide with probability concentration. The entropy of the induced token distribution often remains high (~3.9 nats) throughout maturation, yet generation stays coherent.
+        </p>
+        
+        <div class="figure" style="max-width: 800px;">
+            <img src="assets/entropy_figure.png" alt="Entropy during maturation" style="background: #1a1a2e; padding: 1rem;">
+            <div class="figure-caption">
+                <strong>Left:</strong> Entropy H(p(·|z)) for tokens across refinement steps—often near-constant until projection.
+                <strong>Right:</strong> Top-1 token can "flicker" across steps even when entropy is stable, showing that stability is geometric, not probabilistic.
+            </div>
+        </div>
+    </section>
+
+    <!-- Citation Section -->
+    <section class="section" id="citation">
+        <h2 class="section-title">Citation</h2>
+        
+        <div class="citation-box">
+            <div class="citation-header">
+                <span>BibTeX</span>
+                <button class="copy-btn" onclick="copyBibtex()">Copy</button>
+            </div>
+            <pre class="citation-code">@article{tokenmaturation2025,
+  title={Token Maturation: Autoregressive Language Generation 
+         via Continuous Token Dynamics},
+  author={Anonymous},
+  journal={arXiv preprint arXiv:2601.04854},
+  year={2025}
+}</pre>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <p>Token Maturation • ICML 2025 Submission</p>
+        <p style="margin-top: 0.5rem;">
+            <a href="https://arxiv.org/abs/2601.04854">arXiv</a> • 
+            <a href="#">GitHub (Coming Soon)</a>
+        </p>
+    </footer>
+
+    <script>
+        function copyBibtex() {
+            const bibtex = `@article{tokenmaturation2025,
+  title={Token Maturation: Autoregressive Language Generation via Continuous Token Dynamics},
+  author={Anonymous},
+  journal={arXiv preprint arXiv:2601.04854},
+  year={2025}
+}`;
+            navigator.clipboard.writeText(bibtex).then(() => {
+                const btn = document.querySelector('.copy-btn');
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 2000);
+            });
+        }
+
+        // Intersection Observer for scroll animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.section').forEach(section => {
+            section.style.opacity = '0';
+            section.style.transform = 'translateY(30px)';
+            section.style.transition = 'opacity 0.8s ease, transform 0.8s ease';
+            observer.observe(section);
+        });
+    </script>
+</body>
+</html>
